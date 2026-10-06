@@ -1,0 +1,54 @@
+name: Full Stack CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-packages-and-apps:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Build Core Packages
+        run: |
+          npm run build:types
+          npm run build:ui
+
+      - name: Typecheck Next.js Web App
+        run: npm run dev:web -- --no-haystack
+
+  test-python-services:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Engine Tests
+        run: |
+          pip install -r services/engine/requirements.txt
+          pytest services/engine/tests -v
+
+      - name: Run API Gateway Tests
+        run: |
+          pip install -r services/api-gateway/requirements.txt
+          pytest services/api-gateway/tests -v
