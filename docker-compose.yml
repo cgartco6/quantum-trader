@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # ------------------------------------------------------------------
+  # 1. FastAPI Gateway Service
+  # ------------------------------------------------------------------
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: quantum_api_gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - PORT=8000
+    volumes:
+      - ./services/api-gateway/src:/app/services/api_gateway/src
+      - ./services/api-gateway/tests:/app/services/api_gateway/tests
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - quantum-network
+
+  # ------------------------------------------------------------------
+  # 2. Next.js Web UI Client
+  # ------------------------------------------------------------------
+  web-ui:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: quantum_web_ui
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_GATEWAY_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_GATEWAY_WS_URL=ws://localhost:8000/ws/signals
+      - CHOKIDAR_USEPOLLING=true # Enables live reload inside Linux/Docker volumes
+    volumes:
+      - ./apps/web:/app/apps/web
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - quantum-network
+
+  # ------------------------------------------------------------------
+  # 3. Test Runner (Pytest Suite)
+  # ------------------------------------------------------------------
+  test-runner:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: quantum_test_runner
+    command: ["pytest", "services/api_gateway/tests/test_server.py", "-v", "--cov=services/api_gateway/src"]
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      - api-gateway
+    networks:
+      - quantum-network
+
+networks:
+  quantum-network:
+    driver: bridge
