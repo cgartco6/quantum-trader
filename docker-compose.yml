@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: quantum_api_gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - PORT=8000
+    volumes:
+      - ./services/api-gateway/src:/app/services/api_gateway/src
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - quantum-network
+
+  web-ui:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: quantum_web_ui
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_GATEWAY_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_GATEWAY_WS_URL=ws://localhost:8000/ws/signals
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./apps/web:/app/apps/web
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - quantum-network
+
+  quant-engine:
+    build:
+      context: .
+      dockerfile: services/engine/Dockerfile
+    container_name: quantum_engine
+    volumes:
+      - ./services/engine/src:/app/services/engine/src
+    networks:
+      - quantum-network
+
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: services/telegram-bot/Dockerfile
+    container_name: quantum_telegram_bot
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-MOCK_TOKEN}
+      - GATEWAY_API_URL=http://api-gateway:8000/api/v1
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - quantum-network
+
+networks:
+  quantum-network:
+    driver: bridge
