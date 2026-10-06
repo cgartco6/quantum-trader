@@ -1,5 +1,17 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// apps/desktop/src-tauri/src/main.rs
+#![cfg_attr(
+  all(not(debug_assertions), target_os = "windows"),
+  windows_subsystem = "windows"
+)]
+
+#[tauri::command]
+fn greet(name: &str) -> String {
+    format!("Quantum Terminal Desktop initialized for: {}", name)
+}
 
 fn main() {
-    quantum_desktop_lib::run();
+  tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![greet])
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
 }
