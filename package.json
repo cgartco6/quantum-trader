@@ -5,5 +5,16 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=web",
+    "dev:mobile": "npm run start --workspace=mobile",
+    "dev:desktop": "npm run dev --workspace=desktop",
+    "build:types": "npm run build --workspace=@quantum/core-types",
+    "build:ui": "npm run build --workspace=@quantum/ui-components",
+    "build:all": "npm run build:types && npm run build:ui && npm run build --workspace=web"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
 }
